@@ -1,7 +1,7 @@
 import pytest
 from numpy import ndarray
 
-from face_compare.recognition import percent, new_load_image_file, get_image_vector
+from ..recognition.recognition_func import percent, new_load_image_file, get_image_vector, compare_faces_
 
 testdata_percent = [
     (8, 80, 10.00),
@@ -31,9 +31,9 @@ def test_fail_percent(a, b, result):
 
 
 testdata_new_load_image_file = [
-    ('photo_test/photo_410282.jpeg', 700, 'RGB'),
-    ('photo_test/photo_410282.jpeg', 900, 'L'),
-    ('photo_test/photo_410282.jpeg', 500, "RGB")
+    ('face_compare/tests/photo_test/photo_410282.jpeg', 700, 'RGB'),
+    ('face_compare/tests/photo_test/photo_410282.jpeg', 900, 'L'),
+    ('face_compare/tests/photo_test/photo_410282.jpeg', 500, "RGB")
 ]
 
 
@@ -43,10 +43,6 @@ def test_parametrize_new_load_image_file(a, b, c):
 
 
 def test_get_image_vector():
-    result = get_image_vector('photo_test/photo_410282.jpeg')
+    result = get_image_vector('face_compare/tests/photo_test/photo_410282.jpeg')
     assert isinstance(result, list)
     assert isinstance(result[0], ndarray)
-
-
-def test_compare_faces_():
-    pass

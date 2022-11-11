@@ -10,7 +10,6 @@ from numpy import ndarray
 def percent(num: int or float, total: int or float) -> float:
     """
     Подсчитывает процент от num к total.
-
     :param num: число, процент которого нужно выяснить.
     :param total: общее число (100%).
     :return: процент от числа.
@@ -25,7 +24,6 @@ def percent(num: int or float, total: int or float) -> float:
 def new_load_image_file(file: str, width: int = 1080, mode='RGB') -> ndarray:
     """
     Преобразует изображение (.jpg, .png, etc) в numpy array
-
     :param width: величина ширины для получения измененного размера изображения
     :param file: название или путь изображения
     :param mode: формат, в который нужно преобразовать изображение. По-умолчанию 'RGB' (8-bit RGB, 3 channels),
@@ -49,7 +47,6 @@ def get_image_vector(image_path: str, width: int = 1080) -> List[ndarray]:
     """
     Считывает на изображении лица и преобразует их в 128-мерный массив векторов.
     Сохраняет массивы в список и возвращает.
-
     :param width:
     :param image_path: название или путь изображения.
     :return: список из массивов.
@@ -69,10 +66,9 @@ def get_image_vector(image_path: str, width: int = 1080) -> List[ndarray]:
     return img_encoding
 
 
-def compare_faces_(children_images: List[dict], parent_image: List[ndarray]) -> Union[List[dict], str]:
+def compare_faces_(children_images: List[dict], parent_image: List[ndarray]) -> List[dict]:
     """
     Сравнивает эмбеддинг главного изображения со списком кандидатов(эмбеддингов) из БД.
-
     :param children_images: список эмбеддингов из БД (векторное представление изображения).
     :param parent_image: эмбеддинг главного изображение (векторное представление изображения).
     :return:   [{
@@ -95,15 +91,13 @@ def compare_faces_(children_images: List[dict], parent_image: List[ndarray]) -> 
                 result = fr.compare_faces([parent_image[0]], face['faces'], tolerance=0.485)
                 bool_result = 'True' if True in result else 'False'
                 counter += 1
-            else:
-                return f"Face not found"
 
-            list_.append({
-                'link_id': face['link_id'],
-                'id': counter,
-                'result': bool_result,
-                'time_to_compare': round(time.time() - start_time_down, 5)
-            })
+                list_.append({
+                    'link_id': face['link_id'],
+                    'id': counter,
+                    'result': bool_result,
+                    'time_to_compare': round(time.time() - start_time_down, 5)
+                })
 
         return list_
 

@@ -17,10 +17,10 @@ def gathering_information(image: str) -> None:
     """
 
     end_time = time.time()
-    image_1 = get_image_vector(image)
+    base_image = get_image_vector(image)
 
     inter_list = DATABASE.get_all_faces()
-    result_list = compare_faces_(inter_list, image_1)
+    result_list = compare_faces_(inter_list, base_image)
 
     counter_true = 0
     counter_false = 0
@@ -35,18 +35,20 @@ def gathering_information(image: str) -> None:
             counter_not_found += 1
 
     result_dict = {
+        'base_image': image,
         'count_True': counter_true,
         'counter_True_percent': percent(counter_true, len(result_list)),
         'count_False': counter_false,
         'counter_False_percent': percent(counter_false, len(result_list)),
-        'time_to_end': time.time() - end_time,
+        'time_to_end': round(time.time() - end_time, 2),
         'results': result_list
     }
 
-    with open(f'Result_async.json', 'w', encoding='utf8') as file_json:
+    name_file = image.split('/')[-1]
+
+    with open(f'../Result_async_{name_file}.json', 'w', encoding='utf8') as file_json:
         json.dump(result_dict, file_json, indent=4, ensure_ascii=False)
 
 
 if __name__ == "__main__":
-
-    gathering_information('candidates/Kassym-Jomart_Tokayev_(19-08-2022).jpg')
+    gathering_information('candidates/photo_409345.jpeg')
