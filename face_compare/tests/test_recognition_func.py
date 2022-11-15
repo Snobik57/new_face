@@ -1,7 +1,7 @@
 import pytest
 from numpy import ndarray
 
-from ..recognition.recognition_func import percent, new_load_image_file, get_image_vector, compare_faces_
+from face_compare.recognition_func import percent, new_load_image_file, get_image_vector
 
 testdata_percent = [
     (8, 80, 10.00),

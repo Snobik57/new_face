@@ -1,10 +1,14 @@
 import time
-from typing import List, Union
+from typing import List
 
 import PIL
 import face_recognition as fr
 import numpy as np
 from numpy import ndarray
+
+from models.db_func import DataBaseORM
+
+DATABASE = DataBaseORM()
 
 
 def percent(num: int or float, total: int or float) -> float:
@@ -66,20 +70,15 @@ def get_image_vector(image_path: str, width: int = 1080) -> List[ndarray]:
     return img_encoding
 
 
-def compare_faces_(children_images: List[dict], parent_image: List[ndarray]) -> List[dict]:
+def compare_faces_(children_images: List[dict], parent_image: List[ndarray], image_id) -> List[dict]:
     """
-    Сравнивает эмбеддинг главного изображения со списком кандидатов(эмбеддингов) из БД.
+    Сравнивает эмбеддинг аналитического изображения со списком кандидатов(эмбеддингов) из БД.
+    :param image_id:
     :param children_images: список эмбеддингов из БД (векторное представление изображения).
-    :param parent_image: эмбеддинг главного изображение (векторное представление изображения).
-    :return:   [{
-            'id': counter,
-            'URL': link,
-            'result': result,
-            'time': time
-        }]
+    :param parent_image: эмбеддинг аналитического изображение (векторное представление изображения).
+    :return:   Объект модели SingleCompareFace
     """
-    list_ = []
-    counter = 0
+
     if isinstance(children_images, list) and isinstance(parent_image, list):
 
         for face in children_images:
@@ -89,22 +88,20 @@ def compare_faces_(children_images: List[dict], parent_image: List[ndarray]) -> 
             if len(parent_image) > 0:
                 # Функция сравнения
                 result = fr.compare_faces([parent_image[0]], face['faces'], tolerance=0.485)
-                bool_result = 'True' if True in result else 'False'
-                counter += 1
+                bool_result = True if True in result else False
 
-                list_.append({
-                    'link_id': face['link_id'],
-                    'id': counter,
-                    'result': bool_result,
-                    'time_to_compare': round(time.time() - start_time_down, 5)
-                })
+                DATABASE.add_new_compare(
+                    image_id=image_id,
+                    face_id=face['face_id'],
+                    match_found=bool_result,
+                    match_execution_time=round(time.time() - start_time_down, 5)
+                )
 
-        return list_
+        return DATABASE.get_compare_from_image(image_id)
 
     else:
         raise TypeError('')
 
 
 if __name__ == "__main__":
-    # get_image_vector('../candidates/photo_410282.jpeg')
-    print(get_image_vector('../candidates/photo_410282.jpeg'))
+    pass

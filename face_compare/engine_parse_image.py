@@ -7,7 +7,7 @@ from time import sleep
 from aiohttp import ClientTimeout
 
 from models.db_func import DataBaseORM
-from recognition.recognition_func import get_image_vector
+from face_compare.recognition_func import get_image_vector
 
 BASE_PATH = os.getcwd()
 
@@ -128,7 +128,7 @@ def main():
         print('START')
         asyncio.run(downloads_image())
         print('FINISH')
-        sleep(60 * 20)
+        sleep(60 * 5)
 
 
 if __name__ == '__main__':

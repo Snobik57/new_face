@@ -1,5 +1,7 @@
 import os
 import sys
+from pprint import pprint
+
 import sqlalchemy as sq
 import numpy as np
 
@@ -8,8 +10,7 @@ from sqlalchemy.orm import sessionmaker
 from typing import List, Union
 from dotenv import load_dotenv
 
-from db_model import Faces, Links, create_tables
-
+from db_model import Faces, Links, SingleCompareFace, CompareFaces, create_tables, Images
 
 load_dotenv()
 
@@ -61,6 +62,50 @@ class DataBaseORM:
             return True
         return False
 
+    def add_new_compare(self, image_id, face_id, match_found, match_execution_time):
+        """Добавляет данные о сравнении аналитического изображения и эмбеддинга из БД"""
+        new_compare = SingleCompareFace(
+            image_id=image_id,
+            face_id=face_id,
+            match_found=match_found,
+            match_execution_time=match_execution_time
+        )
+        self.session.add(new_compare)
+        self.session.commit()
+
+    def add_new_multiple_compare(
+            self,
+            image_id,
+            matches_found,
+            matches_found_percent,
+            no_matches_found,
+            no_matches_found_percent,
+            match_execution_time
+    ):
+        """Добавляет данные о всех сравнениях аналитического изображения"""
+        new_compare = CompareFaces(
+            image_id=image_id,
+            matches_found=matches_found,
+            matches_found_percent=matches_found_percent,
+            no_matches_found=no_matches_found,
+            no_matches_found_percent=no_matches_found_percent,
+            match_execution_time=match_execution_time
+        )
+        self.session.add(new_compare)
+        self.session.commit()
+
+    def get_all_compare_from_image(self, image_id):
+        """Возвращает данные о всех сравнениях аналитического изображения в виде объекта модели CompareFaces"""
+        query = self.session.query(CompareFaces).where(CompareFaces.image_id == image_id).all()
+        if query:
+            return query[0]
+
+    def get_compare_from_image(self, image_id):
+        """Возвращает данные о всех сравнениях аналитического изображения в виде объектов модели SingleCompareFace"""
+        query = self.session.query(SingleCompareFace).where(SingleCompareFace.image_id == image_id).all()
+        if query:
+            return query
+
     def get_face_from_link(self, link: str) -> dict:
         """Возвращает массив векторов из модели Faces по указанной ссылке из модели Links"""
         query = self.session.query(Faces)
@@ -81,6 +126,7 @@ class DataBaseORM:
         if query:
             for element in query:
                 dict_ = {
+                    'face_id': element.id,
                     'link_id': element.link_id,
                     'faces': np.array([float(j) for j in element.face])
                 }
@@ -120,10 +166,27 @@ class DataBaseORM:
 
             return True
 
+    def add_inspect(self, image_id):
+        """Обновляет запись в модели Images изменяя значение inspected на True"""
+        query = self.session.query(Images).where(Images.id == image_id).update({Images.inspected: True})
+
+        self.session.commit()
+        if query:
+            return True
+
+    def database_inspection(self):
+        """Возвращает все аналитические изображения, которые ещё не были инспектированы инспектором"""
+        query = self.session.query(Images).where(Images.inspected == False).all()
+
+        if query:
+            return query
+        return []
+
     def close(self):
         self.session.close()
 
 
 if __name__ == '__main__':
     DATABASE = DataBaseORM()
+    pprint(DATABASE.get_all_faces())
 
