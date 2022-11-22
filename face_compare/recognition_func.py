@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 from typing import List
 
 import PIL
@@ -6,9 +7,10 @@ import face_recognition as fr
 import numpy as np
 from numpy import ndarray
 
-from models.db_func import DataBaseORM
+from models.ch_db import DataBaseChORM
 
-DATABASE = DataBaseORM()
+
+DATABASE = DataBaseChORM()
 
 
 def percent(num: int or float, total: int or float) -> float:
@@ -70,10 +72,11 @@ def get_image_vector(image_path: str, width: int = 1080) -> List[ndarray]:
     return img_encoding
 
 
-def compare_faces_(children_images: List[dict], parent_image: List[ndarray], image_id) -> List[dict]:
+def compare_faces_(children_images: List[dict], parent_image: List[ndarray], analytics_image: tuple) -> List[dict]:
     """
     Сравнивает эмбеддинг аналитического изображения со списком кандидатов(эмбеддингов) из БД.
-    :param image_id:
+
+    :param analytics_image:
     :param children_images: список эмбеддингов из БД (векторное представление изображения).
     :param parent_image: эмбеддинг аналитического изображение (векторное представление изображения).
     :return:   Объект модели SingleCompareFace
@@ -88,16 +91,18 @@ def compare_faces_(children_images: List[dict], parent_image: List[ndarray], ima
             if len(parent_image) > 0:
                 # Функция сравнения
                 result = fr.compare_faces([parent_image[0]], face['faces'], tolerance=0.485)
-                bool_result = True if True in result else False
+                match_found = 1 if True in result else 0
 
-                DATABASE.add_new_compare(
-                    image_id=image_id,
-                    face_id=face['face_id'],
-                    match_found=bool_result,
-                    match_execution_time=round(time.time() - start_time_down, 5)
+                DATABASE.insert_in_compare_faces(
+                    analytics_name=analytics_image[0],
+                    image_path=analytics_image[1],
+                    attachment_id=face['link_id'],
+                    match_found=match_found,
+                    match_execution_time=time.time()-start_time_down,
+                    timestamp=datetime.now(),
                 )
 
-        return DATABASE.get_compare_from_image(image_id)
+        return DATABASE.select_result_faces_compare_faces(image_path=analytics_image[1])
 
     else:
         raise TypeError('')

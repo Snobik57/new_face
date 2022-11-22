@@ -3,11 +3,33 @@
 ### Для корректной работы:
 
 * Необходимо настроить переменные окружения в каталоге /face_compare/models
-* Необходимо установить ПО для графического процессора Nvidia CUDA 11.8, cudnn 8.6.0[инструкция](https://github.com/Snobik57/new_face/blob/tasks/documents/driver-cuda-cudnn-dlib%20install "CUDA")
+* Необходимо установить ПО для графического процессора Nvidia CUDA 11.8, cudnn 8.6.0 [инструкция](https://github.com/Snobik57/new_face/blob/tasks/documents/driver-cuda-cudnn-dlib%20install "CUDA")
 * Загрузить все библиотеки из requirements.txt
 * Удалить библиотеку dlib, которая была зависимостью face-recognition
 * Установить библиотеку dlib по [инструкции](https://github.com/Snobik57/new_face/blob/tasks/documents/driver-cuda-cudnn-dlib%20install "CUDA")
-
+* Создаем БД:
+```
+clickhouse-client --password --query "CREATE DATABASE IF NOT EXISTS recognition"
+```
+* Запускаем скрипт для создания БД:
+```
+python3 new_face/face_compare/models/ch_db.py
+```
+* В БД нехватает таблицы с аттачментами. По-этому необходимо переписать запрос в скрипте:\
+ 	`new_face/face_compare/models/ch_db.py.select_all_attachments`
+* Необходимо добавить работающий прокси в:
+	`new_face/face_compare/engine_parse_image.py`
+* Запускаем обработку аттачментов для получения эмбеддингов и занесением их в БД.
+```
+python3 new_face/face_compare/engine_parse_image.py
+```
+* Запускаем обработчик аналитических фотографий. Фотографии добавление аналитиками на платформу должны попадать в таблицу `analytics` (хранить полный путь).
+Скрипт возьмет путь и обработает эти фотографии. Занесет полученые данные в БД в течении 20 - 30 секунд.
+```
+python3 new_face/face_compare/engine_inspect_db.py
+```
+* Далее необходимо забрать данные из БД и передать аналитику.
+___
 
 ### Алгоритм:
 #### engine_parse_image.py

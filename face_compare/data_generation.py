@@ -1,47 +1,52 @@
 import time
+from datetime import datetime
 
+from models.ch_db import DataBaseChORM
 from recognition_func import get_image_vector, compare_faces_, percent
-from models.db_func import DataBaseORM
 
 
-DATABASE = DataBaseORM()
+DATABASE = DataBaseChORM()
 
 
-def gathering_information(image_id: int, image: str):
+def gathering_information(analytics_image: tuple):
     """
     Сравнивает эмбеддинг изображения с данными из БД.
-    Записывает результат в БД (модель CompareFaces)
+    Записывает результат в БД в таблицу analytics_images
 
-    :param image_id: id изображения из БД
-    :param image: путь изображения из БД.
-    :return: объект модели CompareFaces
+    :param analytics_image: id изображения из БД
+
+    :return: Возвращает список данных по полученному изображению из analytics_images
     """
 
     end_time = time.time()
-    base_image = get_image_vector(image)
+    base_image = get_image_vector(f"{analytics_image[1]}")
 
-    inter_list = DATABASE.get_all_faces()
-    result_list = compare_faces_(inter_list, base_image, image_id)
+    inter_list = DATABASE.select_all_with_media_images()
+    result_list = compare_faces_(inter_list, base_image, analytics_image)
 
     counter_true = 0
     counter_false = 0
 
     for element in result_list:
-        if element.match_found is True:
+        if element[3] == 1:
             counter_true += 1
-        elif element.match_found is False:
+        elif element[3] == 0:
             counter_false += 1
 
-    DATABASE.add_new_multiple_compare(
-        image_id=image_id,
+    DATABASE.insert_in_analytics_images(
+        analytics_name=analytics_image[0],
+        inspected=1,
+        image_embedding=base_image[0],
+        image_path=analytics_image[1],
         matches_found=counter_true,
         matches_found_percent=percent(counter_true, len(result_list)),
         no_matches_found=counter_false,
         no_matches_found_percent=percent(counter_false, len(result_list)),
         match_execution_time=round(time.time() - end_time, 2),
+        timestamp=datetime.now(),
     )
 
-    return DATABASE.get_all_compare_from_image(image_id)
+    return DATABASE.select_all_with_analytics_images(analytics_image[1])
 
 
 if __name__ == "__main__":

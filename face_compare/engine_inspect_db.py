@@ -1,8 +1,8 @@
 from data_generation import gathering_information
-from models.db_func import DataBaseORM
+from models.ch_db import DataBaseChORM
 from time import sleep
 
-DATABASE = DataBaseORM()
+DATABASE = DataBaseChORM()
 
 
 def main():
@@ -11,10 +11,9 @@ def main():
         images = DATABASE.database_inspection()
         if images:
             for image in images:
-                inform_with_compare = gathering_information(image.id, image.image)
-                if inform_with_compare:
-                    DATABASE.add_inspect(image.id)
-                    print(f"INFO: about the new image of analysts:\n{inform_with_compare}")
+                inform_with_compare = gathering_information(analytics_image=image)
+                print(f"INFO: about the new image of analysts:\n{inform_with_compare}")
+                print(DATABASE.select_attachments_match_found(image[1]))
         else:
             print('New analyst image not found')
         sleep(5)

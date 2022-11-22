@@ -1,13 +1,15 @@
 import os
+
 import aiohttp
 import aiofiles
 import asyncio
 
 from time import sleep
+from datetime import datetime
 from aiohttp import ClientTimeout
 
-from models.db_func import DataBaseORM
-from face_compare.recognition_func import get_image_vector
+from models.ch_db import DataBaseChORM
+from recognition_func import get_image_vector
 
 BASE_PATH = os.getcwd()
 
@@ -31,30 +33,31 @@ HEADERS = {
     'Upgrade': 'http/1.1',
 }
 
-DATABASE = DataBaseORM()
+DATABASE = DataBaseChORM()
 
 
-async def task_formation(session, link: str, counter: int, timer: int = 10, width: int = 1080) -> str:
+async def task_formation(session, link: str, link_id: int, timer: int = 10, width: int = 1080) -> str:
     """
     Отправляет get-запрос по-указанному url. Проверяет полученный ответ на наличии в контенте изображения.
     Конвертирует изображение в 128-мерный эмбеддинг (128-мерный массив из векторов). Загружает данные в БД.
 
     На get-запрос установленно ограничение соединения (по времени) 10 секунд,
-    чтобы избежать появления исключения aiohttp.ClientOSError.
+    чтобы избежать появления исключения aiohttp.ClientOSError. (если не использовать, то ожидание увеличится)
     Тем самым генерируется исключение aiohttp.ServerTimeoutError, которое обрабатывается и добавляет данные в БД.
 
-    :param width:
-    :param timer:
+    :param width: Параметр для сохранения фотографий в определенном формате.
+                  Необходим для распределения ресурсов GPU.
+    :param timer: Параметр для регулирования ожидания ответа от URL. По-умолчанию - 10 секунд
     :param session: сессия HTTP-запросов (aiohttp.ClientSession).
     :param link: url-адрес на изображение.
-    :param counter: счетчик для подсчета количества url-адресов.
+    :param link_id: id url-адреса.
     :return: None
     """
     try:
         # Проверяем, есть ли ссылка в БД. Если нет, то парсим её, загружаем фотографию, получаем 128-значный массив
         # из векторов, загружаем его в БД, удаляем фотографию.
 
-        # !!! Нужно разобраться с прокси
+        # TODO: Нужно разобраться с прокси
         async with session.get(
                 url=str(link),
                 timeout=ClientTimeout(total=None, sock_connect=timer, sock_read=timer),
@@ -64,33 +67,41 @@ async def task_formation(session, link: str, counter: int, timer: int = 10, widt
         ) as response:
 
             if response.status in [200, 201, 202] and response.content_type.split('/')[0] == 'image':
-                print(counter)
-                DATABASE.add_connect(link, connect_available=True, face_available=False)
+                print(link_id)
                 extension = response.content_type.split('/')[1]
                 if extension in ['jpeg', 'jpg', 'png']:
-                    name_path = f'recognition/inter_folder/img_{counter}.{extension}'
+                    name_path = f'recognition/inter_folder/img_{link_id}.{extension}'
                     async with aiofiles.open(name_path, 'wb') as f:
                         await f.write(await response.read())
 
                         image_faces = get_image_vector(name_path, width=width)
-                        link_id = DATABASE.get_link_id(link=link)
-                        if link_id:
-                            for face_array in image_faces:
-                                DATABASE.add_new_face(link_id=link_id, face_array=face_array)
+
+                        for face_array in image_faces:
+                            DATABASE.insert_in_media_images(
+                                attachment_id=link_id,
+                                face_available=1,
+                                connect_available=1,
+                                embedding=face_array,
+                                timestamp=datetime.now(),
+                            )
 
                         os.remove(name_path)
 
-                        return 'Image'
             else:
-                DATABASE.add_connect(link, connect_available=True, face_available=False)
-                return 'Not_Image'
+                DATABASE.insert_in_media_images(
+                    attachment_id=link_id,
+                    face_available=0,
+                    connect_available=1,
+                    embedding=[],
+                    timestamp=datetime.now(),
+                )
 
     except aiohttp.ClientOSError:
-        print(f"aiohttp.ClientOSError: {counter}")
+        print(f"aiohttp.ClientOSError: {link_id}")
         return 'Error'
 
     except aiohttp.ServerTimeoutError:
-        print(f"aiohttp.ServerTimeoutError: {counter}")
+        print(f"aiohttp.ServerTimeoutError: {link_id}")
         return 'Error'
 
 
@@ -98,23 +109,26 @@ async def downloads_image(timer: int = 10, width: int = 1080) -> tuple:
     """
     Формирует сессию HTTP-запросов, в ней создает список задач (get-запросов) для асинхронного выполнения.
 
-    :param width:
-    :param timer:
+    :param width: Параметр для сохранения фотографий в определенном формате.
+                  Необходим для распределения ресурсов GPU.
+    :param timer: Параметр для регулирования ожидания ответа от URL. По-умолчанию - 10 секунд
+
     :return: возвращает список результатов выполнения задач (функций с get-запросами)
     """
 
-    db_list_of_links = DATABASE.get_all_links()
+    db_list_of_links = DATABASE.select_all_attachments()
 
     # Создаем сессию для соединения со всеми ссылками асинхронно
     connector = aiohttp.TCPConnector(ssl=False)
     async with aiohttp.ClientSession(connector=connector,) as session:
 
         tasks = []
-        for i, link in enumerate(db_list_of_links):
+        for element in db_list_of_links:
 
             # Добавляем задачи (функции) в список задач
-            task = asyncio.create_task(task_formation(session, link, i, timer=timer, width=width))
-            tasks.append(task)
+            if element[0] not in DATABASE.select_id_with_media_images():
+                task = asyncio.create_task(task_formation(session, element[1], element[0], timer=timer, width=width))
+                tasks.append(task)
 
         # Выполняем список задач
         results = await asyncio.gather(*tasks)
