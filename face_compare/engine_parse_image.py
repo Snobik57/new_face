@@ -36,13 +36,17 @@ HEADERS = {
 DATABASE = DataBaseChORM()
 
 
-async def task_formation(session, link: str, link_id: int, timer: int = 10, width: int = 1080) -> str:
+async def task_formation(session, link: str, link_id: int, timer: int = 10, width: int = 1080) -> None:
     """
-    Отправляет get-запрос по-указанному url. Проверяет полученный ответ на наличии в контенте изображения.
-    Конвертирует изображение в 128-мерный эмбеддинг (128-мерный массив из векторов). Загружает данные в БД.
+    Отправляет get-запрос по-указанному url.
+    Проверяет полученный ответ на наличии в контенте изображения.
+    Скачивает изображение.
+    Конвертирует изображение в 128-мерный эмбеддинг (128-мерный массив из векторов).
+    Загружает данные в БД.
+    Удаляет изображение.
 
     На get-запрос установленно ограничение соединения (по времени) 10 секунд,
-    чтобы избежать появления исключения aiohttp.ClientOSError. (если не использовать, то ожидание увеличится)
+    чтобы избежать появления исключения aiohttp.ClientOSError. (если не использовать, то ожидание увеличится).
     Тем самым генерируется исключение aiohttp.ServerTimeoutError, которое обрабатывается и добавляет данные в БД.
 
     :param width: Параметр для сохранения фотографий в определенном формате.
@@ -54,9 +58,6 @@ async def task_formation(session, link: str, link_id: int, timer: int = 10, widt
     :return: None
     """
     try:
-        # Проверяем, есть ли ссылка в БД. Если нет, то парсим её, загружаем фотографию, получаем 128-значный массив
-        # из векторов, загружаем его в БД, удаляем фотографию.
-
         # TODO: Нужно разобраться с прокси
         async with session.get(
                 url=str(link),
@@ -126,7 +127,8 @@ async def task_formation(session, link: str, link_id: int, timer: int = 10, widt
 
 async def downloads_image(timer: int = 10, width: int = 1080) -> tuple:
     """
-    Формирует сессию HTTP-запросов, в ней создает список задач (get-запросов) для асинхронного выполнения.
+    Формирует сессию HTTP-запросов.
+    В ней создает список задач (get-запросов) для асинхронного выполнения.
 
     :param width: Параметр для сохранения фотографий в определенном формате.
                   Необходим для распределения ресурсов GPU.
@@ -137,19 +139,16 @@ async def downloads_image(timer: int = 10, width: int = 1080) -> tuple:
 
     db_list_of_links = DATABASE.select_all_attachments()
 
-    # Создаем сессию для соединения со всеми ссылками асинхронно
     connector = aiohttp.TCPConnector(ssl=False)
     async with aiohttp.ClientSession(connector=connector,) as session:
 
         tasks = []
         for element in db_list_of_links:
 
-            # Добавляем задачи (функции) в список задач
             if element[0] not in DATABASE.select_id_with_media_images():
                 task = asyncio.create_task(task_formation(session, element[1], element[0], timer=timer, width=width))
                 tasks.append(task)
 
-        # Выполняем список задач
         results = await asyncio.gather(*tasks)
 
         return results

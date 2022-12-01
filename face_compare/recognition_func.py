@@ -1,8 +1,7 @@
 import time
 from datetime import datetime
 from typing import List
-
-import PIL
+import PIL.Image
 import face_recognition as fr
 import numpy as np
 from numpy import ndarray
