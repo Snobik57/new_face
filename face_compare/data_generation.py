@@ -19,6 +19,7 @@ def gathering_information(analytics_image: tuple):
     """
 
     end_time = time.time()
+    print(analytics_image[1])
     base_image = get_image_vector(f"{analytics_image[1]}")
 
     inter_list = DATABASE.select_all_with_media_images()

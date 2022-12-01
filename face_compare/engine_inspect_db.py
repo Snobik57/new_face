@@ -9,6 +9,7 @@ def main():
 
     while True:
         images = DATABASE.database_inspection()
+        print(images)
         if images:
             for image in images:
                 inform_with_compare = gathering_information(analytics_image=image)

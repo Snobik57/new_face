@@ -1,4 +1,5 @@
 import os
+from pprint import pprint
 
 import numpy as np
 from dotenv import load_dotenv
@@ -20,9 +21,17 @@ class DataBaseChORM:
     """Класс для работы с БД"""
 
     def __init__(self):
-        self.client = Client(host=HOST, user=USER, password=PASSWORD, port=PORT, database=NAME_DB)
+        self.client = Client(user=USER, password=PASSWORD, host=HOST, port=PORT, database=NAME_DB)
 
     def create_table(self):
+
+        self.client.execute("CREATE TABLE IF NOT EXISTS attachments ("
+                            "id Int16,"
+                            "link String"
+                            ")"
+                            "ENGINE = MergeTree()"
+                            "ORDER BY (id);")
+
         self.client.execute("CREATE TABLE IF NOT EXISTS analytics ("
                             "analytics_name String,"
                             "image_path String"
@@ -234,4 +243,15 @@ class DataBaseChORM:
 
 if __name__ == "__main__":
     DATABASE = DataBaseChORM()
-    DATABASE.create_table()
+    # DATABASE.create_table()
+
+    # with open('attachments insta.txt') as file:
+    #     list_ = [i.strip() for i in file.readlines()]
+    #
+    # for i, link in enumerate(list_, start=1):
+    #     DATABASE.client.execute(
+    #         "INSERT INTO attachments (*) VALUES",
+    #         [{'id': i, 'link': link}]
+    #     )
+
+    pprint(len(DATABASE.select_all_attachments()))

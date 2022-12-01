@@ -70,12 +70,19 @@ async def task_formation(session, link: str, link_id: int, timer: int = 10, widt
                 print(link_id)
                 extension = response.content_type.split('/')[1]
                 if extension in ['jpeg', 'jpg', 'png']:
-                    name_path = f'recognition/inter_folder/img_{link_id}.{extension}'
+                    name_path = f'inter_folder/img_{link_id}.{extension}'
                     async with aiofiles.open(name_path, 'wb') as f:
                         await f.write(await response.read())
 
                         image_faces = get_image_vector(name_path, width=width)
-
+                        if not image_faces:
+                            DATABASE.insert_in_media_images(
+                                attachment_id=link_id,
+                                face_available=0,
+                                connect_available=1,
+                                embedding=[],
+                                timestamp=datetime.now(),
+                            )
                         for face_array in image_faces:
                             DATABASE.insert_in_media_images(
                                 attachment_id=link_id,
@@ -98,11 +105,23 @@ async def task_formation(session, link: str, link_id: int, timer: int = 10, widt
 
     except aiohttp.ClientOSError:
         print(f"aiohttp.ClientOSError: {link_id}")
-        return 'Error'
+        DATABASE.insert_in_media_images(
+            attachment_id=link_id,
+            face_available=0,
+            connect_available=0,
+            embedding=[],
+            timestamp=datetime.now(),
+        )
 
     except aiohttp.ServerTimeoutError:
         print(f"aiohttp.ServerTimeoutError: {link_id}")
-        return 'Error'
+        DATABASE.insert_in_media_images(
+            attachment_id=link_id,
+            face_available=0,
+            connect_available=0,
+            embedding=[],
+            timestamp=datetime.now(),
+        )
 
 
 async def downloads_image(timer: int = 10, width: int = 1080) -> tuple:
