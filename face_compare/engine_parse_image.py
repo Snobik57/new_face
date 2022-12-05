@@ -30,7 +30,7 @@ HEADERS = {
     'vendor': '',
     'vendor_sub': '',
     'Connection': 'Upgrade',
-    'Upgrade': 'http/1.1',
+    'Upgrade': 'HTTP/1.1',
 }
 
 DATABASE = DataBaseChORM()
@@ -68,7 +68,6 @@ async def task_formation(session, link: str, link_id: int, timer: int = 10, widt
         ) as response:
 
             if response.status in [200, 201, 202] and response.content_type.split('/')[0] == 'image':
-                print(link_id)
                 extension = response.content_type.split('/')[1]
                 if extension in ['jpeg', 'jpg', 'png']:
                     name_path = f'inter_folder/img_{link_id}.{extension}'
@@ -77,7 +76,8 @@ async def task_formation(session, link: str, link_id: int, timer: int = 10, widt
 
                         image_faces = get_image_vector(name_path, width=width)
                         if not image_faces:
-                            DATABASE.insert_in_media_images(
+                            print(f"[INFO] {link_id} - connect = TRUE, face = FALSE")
+                            DATABASE.insert_in_attachments_embedding(
                                 attachment_id=link_id,
                                 face_available=0,
                                 connect_available=1,
@@ -85,7 +85,8 @@ async def task_formation(session, link: str, link_id: int, timer: int = 10, widt
                                 timestamp=datetime.now(),
                             )
                         for face_array in image_faces:
-                            DATABASE.insert_in_media_images(
+                            print(f"[INFO] {link_id} - connect = TRUE, face = TRUE")
+                            DATABASE.insert_in_attachments_embedding(
                                 attachment_id=link_id,
                                 face_available=1,
                                 connect_available=1,
@@ -96,7 +97,8 @@ async def task_formation(session, link: str, link_id: int, timer: int = 10, widt
                         os.remove(name_path)
 
             else:
-                DATABASE.insert_in_media_images(
+                print(f"[INFO] {link_id} - connect = TRUE, face = FALSE")
+                DATABASE.insert_in_attachments_embedding(
                     attachment_id=link_id,
                     face_available=0,
                     connect_available=1,
@@ -105,8 +107,8 @@ async def task_formation(session, link: str, link_id: int, timer: int = 10, widt
                 )
 
     except aiohttp.ClientOSError:
-        print(f"aiohttp.ClientOSError: {link_id}")
-        DATABASE.insert_in_media_images(
+        print(f"[INFO] {link_id} - aiohttp.ClientOSError")
+        DATABASE.insert_in_attachments_embedding(
             attachment_id=link_id,
             face_available=0,
             connect_available=0,
@@ -115,8 +117,8 @@ async def task_formation(session, link: str, link_id: int, timer: int = 10, widt
         )
 
     except aiohttp.ServerTimeoutError:
-        print(f"aiohttp.ServerTimeoutError: {link_id}")
-        DATABASE.insert_in_media_images(
+        print(f"[INFO] {link_id} - aiohttp.ServerTimeoutError")
+        DATABASE.insert_in_attachments_embedding(
             attachment_id=link_id,
             face_available=0,
             connect_available=0,
@@ -138,30 +140,21 @@ async def downloads_image(timer: int = 10, width: int = 1080) -> tuple:
     """
 
     db_list_of_links = DATABASE.select_all_attachments()
+    print(f"[INFO] COUNT: attachments - {len(db_list_of_links)}")
 
     connector = aiohttp.TCPConnector(ssl=False)
-    async with aiohttp.ClientSession(connector=connector,) as session:
+    async with aiohttp.ClientSession(connector=connector) as session:
 
         tasks = []
         for element in db_list_of_links:
 
-            if element[0] not in DATABASE.select_id_with_media_images():
-                task = asyncio.create_task(task_formation(session, element[1], element[0], timer=timer, width=width))
-                tasks.append(task)
+            task = asyncio.create_task(task_formation(session, element[1], element[0], timer=timer, width=width))
+            tasks.append(task)
 
         results = await asyncio.gather(*tasks)
 
         return results
 
 
-def main():
-
-    while True:
-        print('START')
-        asyncio.run(downloads_image())
-        print('FINISH')
-        sleep(60 * 5)
-
-
 if __name__ == '__main__':
-    main()
+    pass

@@ -58,11 +58,9 @@ def get_image_vector(image_path: str, width: int = 1080) -> List[ndarray]:
     """
 
     if image_path.split('.')[-1] in ['jpeg', 'jpg', 'png']:
-        # Преобразует фотографию в массив чисел
+
         img = new_load_image_file(image_path, width=width)
-        # Поиск лица на фотографии с помощью сверточной нейронной сети(cnn)
         face_locations = fr.face_locations(img, model='cnn')
-        # Считываем лицо, которое будем сравнивать. Получаем массив векторов(эмбеддинг)
         img_encoding = fr.face_encodings(img, face_locations, model='large', num_jitters=2)
 
     else:
@@ -71,7 +69,7 @@ def get_image_vector(image_path: str, width: int = 1080) -> List[ndarray]:
     return img_encoding
 
 
-def compare_faces_(children_images: List[dict], parent_image: List[ndarray], analytics_image: tuple) -> List[dict]:
+def compare_faces_(children_images: List[dict], parent_image: List[ndarray], analytics_image: tuple) -> dict:
     """
     Сравнивает эмбеддинг аналитического изображения со списком кандидатов(эмбеддингов) из БД.
 
@@ -83,28 +81,35 @@ def compare_faces_(children_images: List[dict], parent_image: List[ndarray], ana
 
     if isinstance(children_images, list) and isinstance(parent_image, list):
 
+        created_at = datetime.now()
+
         for face in children_images:
 
             start_time_down = time.time()
 
-            if len(parent_image) > 0:
-                # Функция сравнения
-                result = fr.compare_faces([parent_image[0]], face['faces'], tolerance=0.485)
-                match_found = 1 if True in result else 0
+            result = fr.compare_faces([parent_image], face['faces'], tolerance=0.485)
+            match_found = 1 if True in result else 0
 
-                DATABASE.insert_in_compare_faces(
-                    analytics_name=analytics_image[0],
-                    image_path=analytics_image[1],
-                    attachment_id=face['link_id'],
-                    match_found=match_found,
-                    match_execution_time=time.time()-start_time_down,
-                    timestamp=datetime.now(),
-                )
+            DATABASE.insert_in_compare_faces(
+                image_id=analytics_image[0],
+                attachment_id=face['link_id'],
+                match_found=match_found,
+                match_execution_time=time.time()-start_time_down,
+                created_at=created_at,
+            )
 
-        return DATABASE.select_result_faces_compare_faces(image_path=analytics_image[1])
+        all_compare = DATABASE.select_result_faces_compare_faces(image_id=analytics_image[0])
+        match = [i for i in all_compare if i[2] == 1]
+        not_match = [i for i in all_compare if i[2] == 0]
+
+        result_dict = {
+            'match_found': match,
+            'match_not_found': not_match,
+        }
+        return result_dict
 
     else:
-        raise TypeError('')
+        raise TypeError('children_images, parent_image: can only be a list')
 
 
 if __name__ == "__main__":

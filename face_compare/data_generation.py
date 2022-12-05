@@ -1,4 +1,5 @@
 import time
+import numpy as np
 from datetime import datetime
 
 from models.ch_db import DataBaseChORM
@@ -19,35 +20,27 @@ def gathering_information(analytics_image: tuple):
     """
 
     end_time = time.time()
-    print(analytics_image[1])
-    base_image = get_image_vector(f"{analytics_image[1]}")
 
-    inter_list = DATABASE.select_all_with_media_images()
-    result_list = compare_faces_(inter_list, base_image, analytics_image)
+    image_embedding = analytics_image[2]
+    attachments_embeddings = DATABASE.select_all_with_attachments_embedding(image_id=analytics_image[0])
+    result = compare_faces_(attachments_embeddings, image_embedding, analytics_image)
 
-    counter_true = 0
-    counter_false = 0
+    attachment_list = np.array([i[1] for i in result['match_found']])
 
-    for element in result_list:
-        if element[3] == 1:
-            counter_true += 1
-        elif element[3] == 0:
-            counter_false += 1
-
-    DATABASE.insert_in_analytics_images(
-        analytics_name=analytics_image[0],
+    DATABASE.insert_in_result(
+        image_id=analytics_image[0],
+        person_name=analytics_image[1],
         inspected=1,
-        image_embedding=base_image[0],
-        image_path=analytics_image[1],
-        matches_found=counter_true,
-        matches_found_percent=percent(counter_true, len(result_list)),
-        no_matches_found=counter_false,
-        no_matches_found_percent=percent(counter_false, len(result_list)),
+        attachments_ids=attachment_list,
+        matches_found=len(result['match_found']),
+        matches_found_percent=percent(len(result['match_found']), len(result['match_found']) + len(result['match_not_found'])),
+        no_matches_found=len(result['match_not_found']),
+        no_matches_found_percent=percent(len(result['match_not_found']), len(result['match_found']) + len(result['match_not_found'])),
         match_execution_time=round(time.time() - end_time, 2),
-        timestamp=datetime.now(),
+        created_at=datetime.now(),
     )
 
-    return DATABASE.select_all_with_analytics_images(analytics_image[1])
+    return DATABASE.select_all_with_result(analytics_image[0])
 
 
 if __name__ == "__main__":
