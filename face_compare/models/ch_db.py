@@ -302,4 +302,3 @@ if __name__ == "__main__":
     #         "INSERT INTO attachments (*) VALUES",
     #         [{'id': i, 'link': link, 'created_at': datetime.now()}]
     #     )
-

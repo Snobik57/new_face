@@ -9,7 +9,7 @@ from datetime import datetime
 from aiohttp import ClientTimeout
 
 from models.ch_db import DataBaseChORM
-from recognition_func import get_image_vector
+from recognition_func import get_image_embedding
 
 BASE_PATH = os.getcwd()
 
@@ -36,7 +36,7 @@ HEADERS = {
 DATABASE = DataBaseChORM()
 
 
-async def task_formation(session, link: str, link_id: int, timer: int = 10, width: int = 1080) -> None:
+async def task_formation(session, attachment: str, attachment_id: int, timer: int = 10, width: int = 1080) -> None:
     """
     Отправляет get-запрос по-указанному url.
     Проверяет полученный ответ на наличии в контенте изображения.
@@ -53,14 +53,14 @@ async def task_formation(session, link: str, link_id: int, timer: int = 10, widt
                   Необходим для распределения ресурсов GPU.
     :param timer: Параметр для регулирования ожидания ответа от URL. По-умолчанию - 10 секунд
     :param session: сессия HTTP-запросов (aiohttp.ClientSession).
-    :param link: url-адрес на изображение.
-    :param link_id: id url-адреса.
+    :param attachment: url-адрес на изображение.
+    :param attachment_id: id url-адреса.
     :return: None
     """
     try:
         # TODO: Нужно разобраться с прокси
         async with session.get(
-                url=str(link),
+                url=str(attachment),
                 timeout=ClientTimeout(total=None, sock_connect=timer, sock_read=timer),
                 headers=HEADERS,
                 # proxy='http://193.0.202.46:10010',
@@ -70,36 +70,36 @@ async def task_formation(session, link: str, link_id: int, timer: int = 10, widt
             if response.status in [200, 201, 202] and response.content_type.split('/')[0] == 'image':
                 extension = response.content_type.split('/')[1]
                 if extension in ['jpeg', 'jpg', 'png']:
-                    name_path = f'inter_folder/img_{link_id}.{extension}'
-                    async with aiofiles.open(name_path, 'wb') as f:
+                    path = f'inter_folder/img_{attachment_id}.{extension}'
+                    async with aiofiles.open(path, 'wb') as f:
                         await f.write(await response.read())
 
-                        image_faces = get_image_vector(name_path, width=width)
-                        if not image_faces:
-                            print(f"[INFO] {link_id} - connect = TRUE, face = FALSE")
+                        image_embedding = get_image_embedding(path, width=width)
+                        if not image_embedding:
+                            print(f"[INFO] {attachment_id} - connect = TRUE, face = FALSE")
                             DATABASE.insert_in_attachments_embedding(
-                                attachment_id=link_id,
+                                attachment_id=attachment_id,
                                 face_available=0,
                                 connect_available=1,
                                 embedding=[],
                                 timestamp=datetime.now(),
                             )
-                        for face_array in image_faces:
-                            print(f"[INFO] {link_id} - connect = TRUE, face = TRUE")
+                        for embedding in image_embedding:
+                            print(f"[INFO] {attachment_id} - connect = TRUE, face = TRUE")
                             DATABASE.insert_in_attachments_embedding(
-                                attachment_id=link_id,
+                                attachment_id=attachment_id,
                                 face_available=1,
                                 connect_available=1,
-                                embedding=face_array,
+                                embedding=embedding,
                                 timestamp=datetime.now(),
                             )
 
-                        os.remove(name_path)
+                        os.remove(path)
 
             else:
-                print(f"[INFO] {link_id} - connect = TRUE, face = FALSE")
+                print(f"[INFO] {attachment_id} - connect = TRUE, face = FALSE")
                 DATABASE.insert_in_attachments_embedding(
-                    attachment_id=link_id,
+                    attachment_id=attachment_id,
                     face_available=0,
                     connect_available=1,
                     embedding=[],
@@ -107,9 +107,9 @@ async def task_formation(session, link: str, link_id: int, timer: int = 10, widt
                 )
 
     except aiohttp.ClientOSError:
-        print(f"[INFO] {link_id} - aiohttp.ClientOSError")
+        print(f"[INFO] {attachment_id} - aiohttp.ClientOSError")
         DATABASE.insert_in_attachments_embedding(
-            attachment_id=link_id,
+            attachment_id=attachment_id,
             face_available=0,
             connect_available=0,
             embedding=[],
@@ -117,9 +117,9 @@ async def task_formation(session, link: str, link_id: int, timer: int = 10, widt
         )
 
     except aiohttp.ServerTimeoutError:
-        print(f"[INFO] {link_id} - aiohttp.ServerTimeoutError")
+        print(f"[INFO] {attachment_id} - aiohttp.ServerTimeoutError")
         DATABASE.insert_in_attachments_embedding(
-            attachment_id=link_id,
+            attachment_id=attachment_id,
             face_available=0,
             connect_available=0,
             embedding=[],
@@ -148,7 +148,9 @@ async def downloads_image(timer: int = 10, width: int = 1080) -> tuple:
         tasks = []
         for element in db_list_of_links:
 
-            task = asyncio.create_task(task_formation(session, element[1], element[0], timer=timer, width=width))
+            attachment = element[1]
+            attachment_id = element[0]
+            task = asyncio.create_task(task_formation(session, attachment, attachment_id, timer=timer, width=width))
             tasks.append(task)
 
         results = await asyncio.gather(*tasks)

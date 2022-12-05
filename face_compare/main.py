@@ -1,8 +1,8 @@
 import asyncio
 
 from data_generation import gathering_information
-from engine_parse_image import downloads_image
-from recognition_func import get_image_vector
+from parse_attachments import downloads_image
+from recognition_func import get_image_embedding
 from models.ch_db import DataBaseChORM
 from time import sleep
 
@@ -30,12 +30,16 @@ def main():
         images_embeddings_ids = [i[0] for i in images_embeddings] if images_embeddings else []
 
         for image in images:
-            if image[0] not in images_embeddings_ids:
-                print(f'[INFO] RECOGNITION: {image[0]}, {image[1]} ')
-                embedding = get_image_vector(image[2])[0]
+
+            image_id = image[0]
+            person_name = image[1]
+
+            if image_id not in images_embeddings_ids:
+                print(f'[INFO] RECOGNITION: {image_id}, {person_name} ')
+                embedding = get_image_embedding(image[2])[0]
                 DATABASE.insert_in_analytics_image_embedding(
-                    image_id=image[0],
-                    person_name=image[1],
+                    image_id=image_id,
+                    person_name=person_name,
                     embedding=embedding,
                 )
         print(f"\n{'#' * 72}\n")
@@ -47,7 +51,9 @@ def main():
 
         for image in images_embeddings:
 
-            print(f"[INFO] START: compare faces from {image[1]}")
+            person_name = image[1]
+
+            print(f"[INFO] START: compare faces from {person_name}")
             inform_with_compare = gathering_information(analytics_image=image)
             print(f"[INFO] ABOUT: the new image of analysts:\n{inform_with_compare}")
             print(f"\n{'#' * 72}\n")

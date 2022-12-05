@@ -1,7 +1,7 @@
 import pytest
 from numpy import ndarray
 
-from face_compare.recognition_func import percent, new_load_image_file, get_image_vector
+from face_compare.recognition_func import percent, new_load_image_file, get_image_embedding
 
 testdata_percent = [
     (8, 80, 10.00),
@@ -43,6 +43,6 @@ def test_parametrize_new_load_image_file(a, b, c):
 
 
 def test_get_image_vector():
-    result = get_image_vector('face_compare/tests/photo_test/photo_410282.jpeg')
+    result = get_image_embedding('face_compare/tests/photo_test/photo_410282.jpeg')
     assert isinstance(result, list)
     assert isinstance(result[0], ndarray)

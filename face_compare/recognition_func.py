@@ -48,7 +48,7 @@ def new_load_image_file(file: str, width: int = 1080, mode='RGB') -> ndarray:
     return np.array(im)
 
 
-def get_image_vector(image_path: str, width: int = 1080) -> List[ndarray]:
+def get_image_embedding(image_path: str, width: int = 1080) -> List[ndarray]:
     """
     Считывает на изображении лица и преобразует их в 128-мерный массив векторов.
     Сохраняет массивы в список и возвращает.
@@ -69,32 +69,32 @@ def get_image_vector(image_path: str, width: int = 1080) -> List[ndarray]:
     return img_encoding
 
 
-def compare_faces_(children_images: List[dict], parent_image: List[ndarray], analytics_image: tuple) -> dict:
+def compare_faces_(attachments_embeddings: List[dict], image_embedding: List[ndarray], analytics_image: tuple) -> dict:
     """
     Сравнивает эмбеддинг аналитического изображения со списком кандидатов(эмбеддингов) из БД.
 
     :param analytics_image:
-    :param children_images: список эмбеддингов из БД (векторное представление изображения).
-    :param parent_image: эмбеддинг аналитического изображение (векторное представление изображения).
+    :param attachments_embeddings: список эмбеддингов из БД (векторное представление изображения).
+    :param image_embedding: эмбеддинг аналитического изображение (векторное представление изображения).
     :return:   Объект модели SingleCompareFace
     """
 
-    if isinstance(children_images, list) and isinstance(parent_image, list):
+    if isinstance(attachments_embeddings, list) and isinstance(image_embedding, list):
 
         created_at = datetime.now()
 
-        for face in children_images:
+        for attachment in attachments_embeddings:
 
-            start_time_down = time.time()
+            start_time = time.time()
 
-            result = fr.compare_faces([parent_image], face['faces'], tolerance=0.485)
+            result = fr.compare_faces([image_embedding], attachment['faces'], tolerance=0.485)
             match_found = 1 if True in result else 0
 
             DATABASE.insert_in_compare_faces(
                 image_id=analytics_image[0],
-                attachment_id=face['link_id'],
+                attachment_id=attachment['link_id'],
                 match_found=match_found,
-                match_execution_time=time.time()-start_time_down,
+                match_execution_time=time.time()-start_time,
                 created_at=created_at,
             )
 
@@ -109,7 +109,7 @@ def compare_faces_(children_images: List[dict], parent_image: List[ndarray], ana
         return result_dict
 
     else:
-        raise TypeError('children_images, parent_image: can only be a list')
+        raise TypeError('attachments_embeddings, image_embedding: can only be a list')
 
 
 if __name__ == "__main__":
