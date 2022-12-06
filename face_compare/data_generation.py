@@ -45,7 +45,3 @@ def gathering_information(analytics_image: tuple):
     )
 
     return DATABASE.select_all_with_result(analytics_image[0])
-
-
-if __name__ == "__main__":
-    pass

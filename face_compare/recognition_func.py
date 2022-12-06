@@ -15,8 +15,10 @@ DATABASE = DataBaseChORM()
 def percent(num: int or float, total: int or float) -> float:
     """
     Подсчитывает процент от num к total.
+
     :param num: число, процент которого нужно выяснить.
     :param total: общее число (100%).
+
     :return: процент от числа.
     """
     if isinstance(num, (int, float)) and isinstance(total, (int, float)):
@@ -29,10 +31,12 @@ def percent(num: int or float, total: int or float) -> float:
 def new_load_image_file(file: str, width: int = 1080, mode='RGB') -> ndarray:
     """
     Преобразует изображение (.jpg, .png, etc) в numpy array
+
     :param width: величина ширины для получения измененного размера изображения
     :param file: название или путь изображения
-    :param mode: формат, в который нужно преобразовать изображение. По-умолчанию 'RGB' (8-bit RGB, 3 channels),
-     и 'L' (черно-белый) поддерживается.
+    :param mode: формат, в который нужно преобразовать изображение.
+                 По-умолчанию 'RGB' (8-bit RGB, 3 channels), и 'L' (черно-белый) поддерживается.
+
     :return: изображение в виде numpy array
     """
     im = PIL.Image.open(file)
@@ -52,8 +56,10 @@ def get_image_embedding(image_path: str, width: int = 1080) -> List[ndarray]:
     """
     Считывает на изображении лица и преобразует их в 128-мерный массив векторов.
     Сохраняет массивы в список и возвращает.
-    :param width:
+
+    :param width: величина ширины для получения измененного размера изображения.
     :param image_path: название или путь изображения.
+
     :return: список из массивов.
     """
 
@@ -73,10 +79,14 @@ def compare_faces_(attachments_embeddings: List[dict], image_embedding: List[nda
     """
     Сравнивает эмбеддинг аналитического изображения со списком кандидатов(эмбеддингов) из БД.
 
-    :param analytics_image:
+    :param analytics_image: данные об аналитическом изображении из БД
     :param attachments_embeddings: список эмбеддингов из БД (векторное представление изображения).
     :param image_embedding: эмбеддинг аналитического изображение (векторное представление изображения).
-    :return:   Объект модели SingleCompareFace
+
+    :return: Словарь result_dict = {
+            'match_found': match,
+            'match_not_found': not_match,
+        }
     """
 
     if isinstance(attachments_embeddings, list) and isinstance(image_embedding, list):
@@ -110,7 +120,3 @@ def compare_faces_(attachments_embeddings: List[dict], image_embedding: List[nda
 
     else:
         raise TypeError('attachments_embeddings, image_embedding: can only be a list')
-
-
-if __name__ == "__main__":
-    pass
