@@ -40,7 +40,8 @@ class DataBaseChORM:
         self.client.execute("CREATE TABLE IF NOT EXISTS analytics_images ("
                             "id Int16, "
                             "person_name String, "
-                            "image_path String, "
+                            "image_path String,"
+                            "user_id Int16, "
                             "created_at DateTime('Etc/GMT+6')"
                             ")"
                             "ENGINE = MergeTree()"
@@ -325,6 +326,7 @@ class DataBaseChORM:
         )
 
         return query
+
 
 if __name__ == "__main__":
     DATABASE = DataBaseChORM()
