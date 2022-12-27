@@ -208,13 +208,14 @@ def downloaded_video(attachment: tuple, counter: int, quiet: bool = False) -> No
                 file.write(response.content)
 
         recognition_vidio(f"{file_dir}/{file_name}.mp4", attachment_id)
+        os.remove(f"{file_dir}/{file_name}.mp4")
 
     except requests.exceptions.ConnectionError:
         print(f"[ERROR] ConnectionError")
         DATABASE.insert_in_attachments_embedding(
             attachment_id=attachment_id,
-            face_available=1,
-            connect_available=1,
+            face_available=0,
+            connect_available=0,
             embedding=np.array([]),
             timestamp=datetime.now(),
         )
