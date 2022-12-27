@@ -15,17 +15,16 @@ clickhouse-client --password --query "CREATE DATABASE IF NOT EXISTS recognition"
 ```
 python3 new_face/face_compare/models/ch_db.py
 ```
-* В БД необходимо добавить аттачменты и переписать запрос в скрипте:\
- 	`new_face/face_compare/models/ch_db.py.select_all_attachments`
+
 * Необходимо добавить работающий прокси в:
-	`new_face/face_compare/engine_parse_image.py`
+	`new_face/face_compare/parce_attachments.py`
 * Запускаем скрипт `face_compare/main.py`
 * Далее необходимо забрать данные из БД и передать аналитику.
 ___
 
 ### Алгоритм:
 #### main.py
-* Забирает аттачменты из внешней БД, скачивает фотографии, распознает на них лица
+* Забирает аттачменты из внешней БД, скачивает фотографии и видео, распознает на них лица
 и заносит данные в таблицу `attachments_embedding`.
 
 *Если аттачмент уже хранится в таблице, то скачивания не произойдет*
