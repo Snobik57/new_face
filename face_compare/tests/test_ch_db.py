@@ -26,14 +26,14 @@ def setup():
         f"""clickhouse-client --password {os.getenv('password')} --query "CREATE DATABASE IF NOT EXISTS {os.getenv('test_database')}" """
     )
     TestDataBaseChORM(client=client_test).create_table()
-    TestDataBaseChORM(client=client_test).client.execute(
+    TestDataBaseChORM(client=client_test).client_recognition.execute(
         "INSERT INTO analytics_images VALUES",
         [{'id': 1,
           'person_name': 'test_string',
           'image_path': 'test/string',
           'created_at': datetime.datetime.now()}]
     )
-    TestDataBaseChORM(client=client_test).client.execute(
+    TestDataBaseChORM(client=client_test).client_recognition.execute(
         "INSERT INTO attachments VALUES",
         [{'id': 1,
           'link': 'link/test_string',

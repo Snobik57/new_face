@@ -1,15 +1,16 @@
 import os
-
 import aiohttp
 import aiofiles
 import asyncio
+import requests
+import numpy as np
 
-from time import sleep
 from datetime import datetime
 from aiohttp import ClientTimeout
+from yt_dlp import YoutubeDL
 
 from models.ch_db import DataBaseChORM
-from recognition_func import get_image_embedding
+from recognition_func import get_image_embedding, recognition_vidio
 
 BASE_PATH = os.getcwd()
 
@@ -70,7 +71,7 @@ async def task_formation(session, attachment: str, attachment_id: int, timer: in
             if response.status in [200, 201, 202] and response.content_type.split('/')[0] == 'image':
                 extension = response.content_type.split('/')[1]
                 if extension in ['jpeg', 'jpg', 'png']:
-                    path = f'inter_folder/img_{attachment_id}.{extension}'
+                    path = f'downloaded_image/img_{attachment_id}.{extension}'
                     async with aiofiles.open(path, 'wb') as f:
                         await f.write(await response.read())
 
@@ -81,7 +82,7 @@ async def task_formation(session, attachment: str, attachment_id: int, timer: in
                                 attachment_id=attachment_id,
                                 face_available=0,
                                 connect_available=1,
-                                embedding=[],
+                                embedding=np.array([]),
                                 timestamp=datetime.now(),
                             )
                         for embedding in image_embedding:
@@ -102,7 +103,7 @@ async def task_formation(session, attachment: str, attachment_id: int, timer: in
                     attachment_id=attachment_id,
                     face_available=0,
                     connect_available=1,
-                    embedding=[],
+                    embedding=np.array([]),
                     timestamp=datetime.now(),
                 )
 
@@ -112,7 +113,7 @@ async def task_formation(session, attachment: str, attachment_id: int, timer: in
             attachment_id=attachment_id,
             face_available=0,
             connect_available=0,
-            embedding=[],
+            embedding=np.array([]),
             timestamp=datetime.now(),
         )
 
@@ -122,25 +123,23 @@ async def task_formation(session, attachment: str, attachment_id: int, timer: in
             attachment_id=attachment_id,
             face_available=0,
             connect_available=0,
-            embedding=[],
+            embedding=np.array([]),
             timestamp=datetime.now(),
         )
 
 
-async def downloads_image(timer: int = 10, width: int = 1080) -> tuple:
+async def downloads_image(db_list_of_links: list, timer: int = 10, width: int = 1080) -> tuple:
     """
     Формирует сессию HTTP-запросов.
     В ней создает список задач (get-запросов) для асинхронного выполнения.
 
-    :param width: Параметр для сохранения фотографий в определенном формате.
+    @param width: Параметр для сохранения фотографий в определенном формате.
                   Необходим для распределения ресурсов GPU.
-    :param timer: Параметр для регулирования ожидания ответа от URL. По-умолчанию - 10 секунд
+    @param timer: Параметр для регулирования ожидания ответа от URL. По-умолчанию - 10 секунд
+    @param db_list_of_links:
+    @return: возвращает список результатов выполнения задач (функций с get-запросами)
 
-    :return: возвращает список результатов выполнения задач (функций с get-запросами)
     """
-
-    db_list_of_links = DATABASE.select_all_attachments()
-    print(f"[INFO] COUNT: attachments - {len(db_list_of_links)}")
 
     connector = aiohttp.TCPConnector(ssl=False)
     async with aiohttp.ClientSession(connector=connector) as session:
@@ -158,5 +157,64 @@ async def downloads_image(timer: int = 10, width: int = 1080) -> tuple:
         return results
 
 
-if __name__ == '__main__':
-    pass
+def downloaded_video(attachment: tuple, counter: int, quiet: bool = False) -> None:
+    """
+    Парсит аттачменты видео. Скачивает видео в формате 480p.
+    Использует библиотеку yt_dlp.
+
+    @param attachment: Объект БД.
+    @param counter: номер аттачмента в цикле
+    @param quiet: значение определяющее выводить ли информации о скачивании (По умолчанию False)
+    @return:
+    """
+    proxies = {
+        "http": "http://189.202.188.149:80",
+        "https": "https://79.133.51.36:80",
+    }
+
+    file_dir = "downloaded_video"
+    file_name = f"file_{counter}"
+
+    options = {
+        'format': 'mp4',
+        'paths': {'home': f'{file_dir}/'},
+        'quiet': quiet,
+        'outtmpl': {'default': f'{file_name}.mp4'},
+        'format_sort': ('height:480', ),
+    }
+
+    attachment_id = attachment[0]
+    attachment_url = attachment[1].split(' ')[0]
+
+    try:
+
+        attachment_resource = attachment_url.split('//')[1].split('/')[0].split('.')[1]
+        resources = ["youtube", "vk", "ok"]
+
+        if attachment_resource in resources or attachment_url.find("m3u8"):
+            with YoutubeDL(options) as y_dl:
+                y_dl.download(attachment_url)
+                print(f"[INFO] successful download")
+
+        else:
+            response = requests.get(
+                attachment_url,
+                stream=True,
+                headers=HEADERS,
+                # proxies=proxies,
+            )
+
+            with open(f'{file_dir}/{file_name}.mp4', 'wb') as file:
+                file.write(response.content)
+
+        recognition_vidio(f"{file_dir}/{file_name}.mp4", attachment_id)
+
+    except requests.exceptions.ConnectionError:
+        print(f"[ERROR] ConnectionError")
+        DATABASE.insert_in_attachments_embedding(
+            attachment_id=attachment_id,
+            face_available=1,
+            connect_available=1,
+            embedding=np.array([]),
+            timestamp=datetime.now(),
+        )

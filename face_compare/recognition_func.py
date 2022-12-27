@@ -1,10 +1,12 @@
 import time
-from datetime import datetime
-from typing import List
-import PIL.Image
+import PIL
 import face_recognition as fr
 import numpy as np
+import cv2
+
 from numpy import ndarray
+from datetime import datetime
+from typing import List
 
 from models.ch_db import DataBaseChORM
 
@@ -75,7 +77,7 @@ def get_image_embedding(image_path: str, width: int = 1080) -> List[ndarray]:
     return img_encoding
 
 
-def compare_faces_(attachments_embeddings: List[dict], image_embedding: List[ndarray], analytics_image: tuple) -> dict:
+def compare_images(attachments_embeddings: List[dict], image_embedding: List[ndarray], analytics_image: tuple) -> dict:
     """
     Сравнивает эмбеддинг аналитического изображения со списком кандидатов(эмбеддингов) из БД.
 
@@ -120,3 +122,59 @@ def compare_faces_(attachments_embeddings: List[dict], image_embedding: List[nda
 
     else:
         raise TypeError('attachments_embeddings, image_embedding: can only be a list')
+
+
+def recognition_vidio(video_file_path: str, attachment_id: int) -> None:
+    """
+    Считывает видео по кадрам. Проводит распознавание на каждом пятом кадре.
+    Заносит данные по видео в БД.
+    Если высота и ширина кадра превышает 854х480, то кадр преобразуется в установленный
+
+    @param video_file_path: путь к видео
+    @param attachment_id: id аттачмента
+    @return: None
+    """
+    input_movie = cv2.VideoCapture(video_file_path)
+    length = int(input_movie.get(cv2.CAP_PROP_FRAME_COUNT))
+    counter = 0
+    result = False
+
+    while True:
+
+        counter += 1
+        ret, face = input_movie.read()
+        width = int(input_movie.get(3))
+        height = int(input_movie.get(4))
+
+        if width * height > 410000:
+            percent_frame = ((((width * height) - 410000) * 100) / (width * height)) / 100
+            width = int(width * percent_frame)
+            height = int(height * percent_frame)
+            face = cv2.resize(face, (width, height))
+
+        if not ret or counter > 1800:
+            return result
+
+        elif ret and counter % 5 == 0:
+
+            video_face_locations = fr.face_locations(face, model='cnn')
+            video_face_encodings = fr.face_encodings(face, video_face_locations)
+
+            if video_face_encodings:
+                for embedding in video_face_encodings:
+                    DATABASE.insert_in_attachments_embedding(
+                        attachment_id=attachment_id,
+                        face_available=1,
+                        connect_available=1,
+                        embedding=embedding,
+                        timestamp=datetime.now(),
+                    )
+
+            else:
+                DATABASE.insert_in_attachments_embedding(
+                    attachment_id=attachment_id,
+                    face_available=0,
+                    connect_available=1,
+                    embedding=np.array([]),
+                    timestamp=datetime.now(),
+                )

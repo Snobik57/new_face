@@ -3,7 +3,7 @@ import numpy as np
 from datetime import datetime
 
 from models.ch_db import DataBaseChORM
-from recognition_func import get_image_embedding, compare_faces_, percent
+from recognition_func import get_image_embedding, compare_images, percent
 
 
 DATABASE = DataBaseChORM()
@@ -23,7 +23,7 @@ def gathering_information(analytics_image: tuple):
 
     image_embedding = analytics_image[2]
     attachments_embeddings = DATABASE.select_all_with_attachments_embedding(image_id=analytics_image[0])
-    result = compare_faces_(attachments_embeddings, image_embedding, analytics_image)
+    result = compare_images(attachments_embeddings, image_embedding, analytics_image)
 
     # attachment_list = np.array([i[1] for i in result['match_found']])
     # count_matches = len(result['match_found'])

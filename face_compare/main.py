@@ -1,10 +1,12 @@
 import asyncio
+import os
 
+from time import sleep
 from data_generation import gathering_information
-from parse_attachments import downloads_image
+from parse_attachments import downloads_image, downloaded_video
 from recognition_func import get_image_embedding
 from models.ch_db import DataBaseChORM
-from time import sleep
+
 
 DATABASE = DataBaseChORM()
 
@@ -26,12 +28,30 @@ def main():
     Если сравнение с изображением с аттачментом уже было проведено, то повторно не будет.
     """
 
+    if 'downloaded_video' not in os.listdir():
+        os.mkdir('downloaded_video')
+
+    if 'downloaded_image' not in os.listdir():
+        os.mkdir('downloaded_image')
+
     while True:
 
         # Скрапинг аттачментов из БД с добавлением эмбеддингов в БД
 
+        # Скрапинг изображений:
+
+        db_list_of_attachments_image = DATABASE.select_all_attachments(type_attachment=0)
+
         print('[INFO] START: face recognition on new attachments ')
-        asyncio.run(downloads_image())
+        asyncio.run(downloads_image(db_list_of_attachments_image))
+
+        # Скрапинг видео:
+
+        db_list_of_attachments_video = DATABASE.select_all_attachments(type_attachment=2)
+
+        for i, attachment in enumerate(db_list_of_attachments_video):
+            downloaded_video(attachment, i, True)
+
         print('[INFO] FINISH: face recognition')
         print(f"\n{'#' * 72}\n")
 
